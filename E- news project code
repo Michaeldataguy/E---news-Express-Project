@@ -1,0 +1,248 @@
+# Import all necessary libraries
+import numpy as np
+import pandas as pd
+from io import StringIO
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
+%matplotlib inline
+
+#loading the dataset
+abtest = pd.read_csv("abtest.csv")
+print(abtest)
+
+#Exploratory Data Analysis
+# view the first 5 rows of the dataset
+abtest.head()
+
+# view the last 5 rows of the dataset
+abtest.tail()
+
+# Shape of the dataset
+abtest.shape
+
+# check the data types of the columns in the dataset
+abtest.info()
+
+#Getting the statistical summary for the numerical variables
+abtest.describe()
+
+#Getting the statistical summary for the categorical variables
+abtest_summary = abtest.describe(include=['object','category'])
+print(abtest_summary)
+
+#Check for missing values
+print(abtest.isnull())
+
+#checking for duplicate
+abtest.duplicated().sum()
+
+#Univariate Analysis
+#Time spent on the page
+# Distribution of time spent
+sns.histplot(abtest['time_spent_on_the_page'], kde=True)
+plt.title('Distribution of Time Spent on Page')
+plt.show()
+# Observation: Appears roughly normal, centered around 5-6 minutes.
+
+#Group 
+abtest['group'].value_counts()
+sns.countplot(data=abtest,x='group')
+plt.show()
+# 50 control, 50 treatment - balanced.
+
+#Landing page
+abtest['landing_page'].value_counts() # 50 old, 50 new - balanced
+
+sns.countplot(data=abtest,x='landing_page')
+plt.show()
+
+#Converted
+abtest['converted'].value_counts()
+# yes:54, no:46 - more conversions slightly.
+
+sns.countplot(data=abtest,x='converted')
+plt.show()
+
+abtest['language_preferred'].value_counts()  # Spanish:34, French:34, English:32 - nearly balanced.
+
+#Language preferred
+sns.countplot(data=abtest,x='language_preferred')
+plt.show()
+
+#Bivariate Analysis
+#Landing page vs Time spent on the page
+plt.figure(figsize=(10,6))
+sns.boxplot(data=abtest,x='landing_page',y='time_spent_on_the_page')
+plt.title('Landing page vs Time spent on the page')
+plt.show()
+# Insight derieved: Median time higher for new (~6 min) vs old (~4.5 min). New has outliers but higher overall. Mean old: 4.53, new: 6.22.
+
+#Conversion status vs Time spent on the page
+plt.figure(figsize=(9, 9))
+sns.boxplot(data = abtest, x = 'time_spent_on_the_page', y = 'converted')
+plt.title('Conversion status vs Time spent on the page')
+plt.show()
+
+#Language preferred vs Time spent on the page
+plt.figure(figsize=(9, 9))
+sns.boxplot(data = abtest, x ='time_spent_on_the_page', y = 'language_preferred')
+plt.title('Language preferred vs Time spent on the page')
+plt.show()
+
+# Perform Visual Analysis
+# visual analysis of the time spent on the new page and the time spent on the old page
+
+plt.figure(figsize=(8,6))
+sns.boxplot(x = 'landing_page', y = 'time_spent_on_the_page', data = abtest)
+plt.title('Time Spent On New Page By Language')
+plt.show()
+# Observation: Medians similar, English slightly higher (~6.66 mean), Spanish lowest (~5.84), French ~6.20. Variances similar.
+
+# Histograms for old and new pages
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+sns.histplot(abtest[abtest['landing_page'] == 'old']['time_spent_on_the_page'], kde=True, color='skyblue', label='Old Page')
+plt.title('Time Spent on Old Page')
+plt.xlabel('Time Spent (Minutes)')
+plt.ylabel('Count')
+plt.legend()
+plt.subplot(1, 2, 2)
+sns.histplot(abtest[abtest['landing_page'] == 'new']['time_spent_on_the_page'], kde=True, color='lightcoral', label='New Page')
+plt.title('Time Spent on New Page')
+plt.xlabel('Time Spent (Minutes)')
+plt.ylabel('Count')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+#Question 1. Do the users spend more time on the new landing page than the existing landing page?
+
+#Step 1: Define the null and alternate hypotheses
+
+#Null Hypothesis (H₀): The mean time spent on the new landing page is less than or equal to the mean time spent on the old landing page (μ_new ≤ μ_old).
+#Alternative Hypothesis (H_a): The mean time spent on the new landing page is greater than the mean time spent on the old landing page (μ_new > μ_old).
+
+#Step 2: Select the Appropriate Test
+# The appropriate test is a two-sample independent t-test (Welch’s variant).
+
+#Step 3: Decide the Significance Level
+#Significance Level (α): 0.05 (5%), as specified in the problem statement.
+#Interpretation: We will reject H₀ if the p-value is less than 0.05, indicating a statistically significant difference at the 5% level.
+
+#Step 4: Collect and Prepare Data
+# Extract time spent for old and new pages
+time_old = abtest[abtest['landing_page'] == 'old']['time_spent_on_the_page']
+time_new = abtest[abtest['landing_page'] == 'new']['time_spent_on_the_page']
+
+# Verify sample sizes
+print(f"Sample size (old): {len(time_old)}, Sample size (new): {len(time_new)}")
+# Output: Sample size (old): 50, Sample size (new): 50
+
+# Summary statistics
+print("Old page summary:")
+print(time_old.describe())
+print("\nNew page summary:")
+print(time_new.describe())
+
+#Step 5: Calculate the p-value
+#We perform the one-tailed Welch’s t-test:
+# Welch’s t-test (one-tailed)
+t_stat, p_val = stats.ttest_ind(time_new, time_old, equal_var=False, alternative='greater')
+print(f't-stat: {t_stat:.4f}, p-value: {p_val:.4f}')
+# Insight: t=3.7868, p=0.0001 <0.05, reject H0. Users spend significantly more time on new page (mean 6.22 vs 4.53).
+# Observation: New page is more engaging.
+#Calculated p-value: The t-statistic = 3.787, and the p-value = 0.0001.
+
+#Step 6: Compare the p-value with α
+
+# p-value: 0.0001
+# α: 0.05
+#Comparison: The p-value (0.0001) is much less than α (0.05).
+
+#Since p < α, we reject the null hypothesis.
+
+
+#Step 7: Draw Inference
+#Based on the p-value (0.0001 < 0.05), we reject the null hypothesis (H₀: μ_new ≤ μ_old). There is strong statistical evidence to conclude that users spend significantly more time on the new landing page (mean = 6.22 minutes) compared to the old landing page (mean = 4.53 minutes). The new landing page is more effective in engaging user.,
+
+#summary
+#Visual Analysis: Boxplot and histograms show the new page has a higher median (6.11 vs. 4.38 min) and mean (6.22 vs. 4.53 min) with less variability and fewer quick exits, indicating greater engagement.
+#Statistical Testing: Welch’s one-tailed t-test confirms a significant difference (t=3.7868, p=0.0001).
+# in Conclusion, The new landing page significantly increases user time spent, aligning with E-news Express’s goal of enhancing engagement.
+
+#Question 2: Is the conversion rate for the new page greater than for the old page?
+
+#Null hypothesis (H0) = p_new ≤ p_old
+#Alternative hypothesis (Ha) = p_new > p_old
+#Test: One-tailed two-proportion z-test
+
+# Counts
+n_old = len(abtest[abtest['landing_page']=='old'])
+converted_old = sum(abtest[abtest['landing_page']=='old']['converted']=='yes')
+n_new = len(abtest[abtest['landing_page']=='new'])
+converted_new = sum(abtest[abtest['landing_page']=='new']['converted']=='yes')
+
+from statsmodels.stats.proportion import proportions_ztest
+count = np.array([converted_new, converted_old])
+nobs = np.array([n_new, n_old])
+z_stat, p_val = proportions_ztest(count, nobs, alternative='larger')
+print(f'z-stat: {z_stat:.4f}, p-value: {p_val:.4f}')
+# Insight: z=2.4077, p=0.0080 <0.05, reject H0. Conversion rate significantly higher for new (66% vs 42%).
+# Observation: New design effective in increasing subscriptions.
+#Calculated p-value : The z-statistic is 2.4077, and the p-value is 0.0080.
+
+#question 3: Does the converted status depend on the preferred language?
+#Null hypothesis (H0): Independent
+#Alternative hypothesis (Ha): Dependent
+#Test: Chi-square test of independence
+
+# Contingency table
+contingency = pd.crosstab(abtest['converted'], abtest['language_preferred'])
+print(contingency)
+# English: no 11 yes 21; French: no 19 yes 15; Spanish: no 16 yes 18
+
+# Chi-square test
+chi2, p_val, dof, expected = stats.chi2_contingency(contingency)
+print(f'chi2: {chi2:.4f}, p-value: {p_val:.4f}, dof: {dof}')
+# Insight: chi2=3.0930, p=0.2130 >0.05, fail to reject H0. No significant dependence.
+# Observation: Conversion does not vary by language.
+
+#Question 4: Is the time spent on the new page the same for the different language users?
+#Null hypothesis (H0): μ_Eng = μ_Fre = μ_Spa
+#Alternative hypothesis (Ha): At least one different
+#Test: One-way ANOVA. Check assumptions.
+
+# Group by language for new page
+abtest_new = abtest[abtest['landing_page']=='new']
+english = abtest_new[abtest_new['language_preferred']=='English']['time_spent_on_the_page']
+spanish = abtest_new[abtest_new['language_preferred']=='Spanish']['time_spent_on_the_page']
+french = abtest_new[abtest_new['language_preferred']=='French']['time_spent_on_the_page']
+
+# Check normality
+stats.shapiro(english)  # p=0.886 >0.05
+stats.shapiro(spanish)  # p=0.090 >0.05
+stats.shapiro(french)   # p=0.321 >0.05 - all normal
+
+# Check equal variance
+stats.levene(english, spanish, french)  # p=0.467 >0.05, equal
+
+# ANOVA
+f_stat, p_val = stats.f_oneway(english, spanish, french)
+print(f'f-stat: {f_stat:.4f}, p-value: {p_val:.4f}')
+
+# Insight: f=0.8544, p=0.4320 >0.05, fail to reject H0. Times similar (means: English 6.66, French 6.20, Spanish 5.84).
+# Observation: Engagement consistent across languages on new page.
+
+#Conclusions:
+
+#Users spend more time on the new landing page (p=0.0001), indicating better engagement.
+#Conversion rate is higher for the new page (66% vs 42%, p=0.008), suggesting effectiveness.
+#Converted status independent of language (p=0.213), no bias.
+#Time on new page similar across languages (p=0.432), uniform appeal.
+
+
+
